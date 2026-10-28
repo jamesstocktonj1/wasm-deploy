@@ -40,3 +40,6 @@ jobs:
         run: |
           # --validate=false: Argo's repo connectivity test can't pass anonymously on ghcr.io
           argocd app set wasm-deploy --revision "$VERSION" --validate=false
+
+          # wait for succesful deployment
+          argocd app wait wasm-deploy --sync --health --timeout 300
