@@ -1,0 +1,85 @@
+name: Publish Function
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: Publish version
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  wasm:
+    name: Publish Wasm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      # Setup Tools
+      - name: Install componentize-go
+        uses: bytecodealliance/componentize-go/.github/actions/setup-componentize-go@main
+        with:
+          version: canary
+      - name: Install wash
+        uses: wasmCloud/setup-wash-action@main
+        with:
+          wash-version: v2.11.0
+      
+      # Bump Version + Build
+      - name: Bump Version
+        run: |
+          sed -i -E 's|FunctionVersion = "[^"]*" // Function Version|FunctionVersion = "${{ inputs.version }}" // Function Version|' main.go
+          grep -q 'FunctionVersion = "${{ inputs.version }}" // Function Version' main.go
+      - name: Run Build
+        run: |
+          componentize-go build
+
+      # Publish
+      - name: Login to container registry
+        uses: docker/login-action@v3.7.0 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Publish artifact
+        run: |
+          wash oci push ghcr.io/jamesstocktonj1/wasm-deploy/function:${{ inputs.version }} main.wasm
+
+  workload:
+    name: Publish WorkloadDeployment
+    runs-on: ubuntu-latest
+    needs: wasm
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Setup Tools
+      - name: Install oras
+        uses: oras-project/setup-oras@v1
+
+      # Bump Version
+      - name: Bump Version
+        run: |
+          sed -i -E 's|(image: ghcr.io/jamesstocktonj1/wasm-deploy/function:)[^ ]+( # Function Version)|\1${{ inputs.version }}\2|' workload.yaml
+          grep -q 'function:${{ inputs.version }} # Function Version' workload.yaml
+
+      # Publish
+      - name: Package workload
+        run: |
+          tar -czf workload.tar.gz workload.yaml
+      - name: Login to container registry
+        uses: docker/login-action@v3.7.0 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Publish artifact
+        run: |
+          oras push ghcr.io/jamesstocktonj1/wasm-deploy/workload:${{ inputs.version }} \
+            --artifact-type application/vnd.wasm-deploy.workload.v1 \
+            workload.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip

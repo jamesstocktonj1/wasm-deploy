@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wasm-deploy
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # deleting this app also deletes what it created
+spec:
+  project: default
+  source:
+    repoURL: oci://ghcr.io/jamesstocktonj1/wasm-deploy/workload
+    targetRevision: 0.1.0 # Workload Version
+    path: .
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
