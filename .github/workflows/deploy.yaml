@@ -37,4 +37,5 @@ jobs:
           ARGOCD_OPTS: --grpc-web --insecure
           VERSION: ${{ inputs.version }}
         run: |
-          argocd app set wasm-deploy --revision "$VERSION"
+          # --validate=false: Argo's repo connectivity test can't pass anonymously on ghcr.io
+          argocd app set wasm-deploy --revision "$VERSION" --validate=false
