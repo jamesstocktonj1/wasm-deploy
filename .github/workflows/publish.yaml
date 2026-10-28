@@ -37,6 +37,7 @@ jobs:
           grep -q 'FunctionVersion = "${{ inputs.version }}" // Function Version' main.go
       - name: Run Build
         run: |
+          go mod download
           componentize-go build
 
       # Publish
