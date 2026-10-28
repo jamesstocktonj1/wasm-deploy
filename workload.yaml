@@ -18,6 +18,7 @@ spec:
             hostname: wasm-deploy.internal   # must equal config.host above
             path:
               type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: wasm-deploy
           port: 80
